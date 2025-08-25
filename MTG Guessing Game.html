@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Cuties MTG Decklists</title>
+  <style>
+    :root {
+      --p1: #e63946; /* red */
+      --p2: #3e9cfa; /* blue */
+      --tile-size: 120px;
+    }
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 0;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    #setup,
+    #game {
+      width: 100%;
+      max-width: 2000px;
+    }
+
+    h1 {
+      text-align: center;
+      margin: 0.25em 0 0.5em;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* layout for board + remaining list */
+    .gameArea {
+      display: flex;
+      flex-direction: row;
+      gap: 40px;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: nowrap;
+    }
+
+    /* ============================
+       BOARD / TILES
+       ============================ */
+    .board {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(var(--tile-size), 1fr));
+      gap: 16px;
+      justify-content: start;
+      align-content: start;
+    }
+
+    .tile {
+      width: var(--tile-size);
+      height: calc(var(--tile-size) * 1.4);
+      border-radius: 6px;
+      overflow: hidden;
+      position: relative;
+      cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+      transition: transform 0.15s;
+    }
+    .tile:hover {
+      transform: scale(1.05);
+    }
+    .tile img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .tile::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: #ddd;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1.5rem;
+      color: #555;
+    }
+    .tile.revealed::after {
+      content: none;
+    }
+    .tile.p1 {
+      outline: 4px solid var(--p1);
+    }
+    .tile.p2 {
+      outline: 4px solid var(--p2);
+    }
+
+    /* ============================
+       REMAINING LIST
+       ============================ */
+    #remaining {
+      width: 300px;
+      max-height: calc(100vh - 200px);
+      background: #fafafa;
+      border-radius: 6px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      padding: 0.75rem 1rem;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+    #remaining h2 {
+      margin: 0 0 0.5rem;
+      font-size: 1.1rem;
+      text-align: center;
+    }
+    #remaining ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    #remaining li {
+      margin: 4px 0;
+      font-size: 0.9rem;
+    }
+
+    /* ============================
+       CONTROLS
+       ============================ */
+    #controls button {
+      padding: 0.5rem 1rem;
+      margin: 0 0.25rem;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+
+    #score {
+      text-align: center;
+      font-size: 1.2rem;
+      margin-bottom: 0.5rem;
+    }
+
+    #turnIndicator {
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>The Cuties MTG Decklists</h1>
+
+  <!-- Setup Screen -->
+  <section id="setup">
+    <label>
+      Player&nbsp;1 Name:
+      <input id="p1Name" required />
+    </label>
+    <br />
+    <label>
+      Player&nbsp;2 Name:
+      <input id="p2Name" required />
+    </label>
+    <br />
+    <button id="startBtn">Start Game</button>
+  </section>
+
+  <!-- Game Screen -->
+  <section id="game" class="hidden">
+    <div id="score"></div>
+    <div id="turnIndicator"></div>
+
+    <div id="controls" class="hidden" style="text-align: center; padding-bottom: 10px;">
+      <div id="currentDeck" style="color:rgb(219, 10, 10); font-size:20px; font-weight: bold; margin-bottom: 6px;"></div>
+      <button id="rightBtn">Guessed Right</button>
+      <button id="wrongBtn">Guessed Wrong</button>
+    </div>
+
+
+    <!-- Board + Remaining List Side‑by‑Side -->
+    <div class="gameArea">
+      <div id="board" class="board"></div>
+      <aside id="remaining">
+        <h2 id="remainingTitle">Decks Left</h2>
+        <ul id="remainingList"></ul>
+      </aside>
+    </div>
+  </section>
+
+  <script>
+    const TILE_IMAGES = [
+      { url: "https://cards.scryfall.io/large/front/2/4/246a7176-98bc-4f54-aa61-38747420f178.jpg?1710673450", name: "Hail, Caesar" },
+      { url: "https://cards.scryfall.io/large/front/9/f/9f868023-6035-403d-ba91-7a4840c6c392.jpg?1726596831", name: "Miracle Worker (Enchantements 3)" },
+      { url: "https://cards.scryfall.io/large/front/3/0/30f23588-5064-48d9-a271-039df757f8d2.jpg?1726596680", name: "Jump Scaree! (Faces Cachées 2)" },
+      { url: "https://cards.scryfall.io/large/front/8/d/8d7c1f6c-af45-4449-8cf8-e13830b3df8a.jpg?1726596807", name: "Endless Punishment (Pew Pew 2)" },
+      { url: "https://cards.scryfall.io/large/front/9/4/94dc35e4-a492-4019-afcd-cbef6f59a512.jpg?1726596850", name: "Death Toll" },
+      { url: "https://cards.scryfall.io/large/front/3/d/3d6d6944-a364-41c2-b824-7a1bf6ad0d1e.jpg?1710673435", name: "Mutant Menace (Rad)" },
+      { url: "https://cards.scryfall.io/large/front/d/d/dd4a00ff-2206-4e12-a0ab-61ed82c9e6c5.jpg?1686963690", name: "Riders of Rohan (Humains)" },
+      { url: "https://cards.scryfall.io/large/front/3/1/31e4b7a1-b377-49d2-a92e-4bcb0db35f16.jpg?1721428130", name: "Animated Army (Bello)" },
+      { url: "https://cards.scryfall.io/large/front/3/2/328df403-7428-4b17-bdd1-9759fc0f32d8.jpg?1686963703", name: "Food and Fellowship" },
+	    { url: "https://cards.scryfall.io/large/front/8/6/86b45e3e-8460-4678-87d1-d74479936c83.jpg?1710673445", name: "Scrappy Survivor (Dogmeat)" },
+	    { url: "https://cards.scryfall.io/large/front/e/7/e738e675-4fd1-4bc3-97f5-71d0e2fc3f2e.jpg?1699885010", name: "Explorers of the Deep (Merfolk)" },
+	    { url: "https://cards.scryfall.io/large/front/e/7/e77374ac-3456-48a3-a412-4474547d437c.jpg?1721427770", name: "Hop Hop!" },
+      { url: "https://cards.scryfall.io/large/front/7/b/7b549690-72eb-4244-bb66-996a2bd1027e.jpg?1717566679", name: "Descent into Madness (Trésors)" },
+      { url: "https://cards.scryfall.io/large/front/4/5/45851394-b8f3-4713-8239-afcb387d47c5.jpg?1692933623", name: "Virtue and Valor (Enchantement 1)" },
+      { url: "https://cards.scryfall.io/large/front/5/5/55e6c31b-f9e9-4e42-a875-985d99300d9d.jpg?1714110406", name: "Most Wanted (Outlaws)" },
+      { url: "https://cards.scryfall.io/large/front/0/9/09980ce6-425b-4e03-94d0-0f02043cb361.jpg?1730488991", name: "Touching Grass" },
+      { url: "https://cards.scryfall.io/large/front/5/e/5ed9d78f-a556-435f-b95f-7317ae66e5e3.jpg?1692940265", name: "Adventure Time" },
+      { url: "https://cards.scryfall.io/large/front/9/b/9b5bc5d7-c0f8-4632-adb7-dd3b75a3d87d.jpg?1607363660", name: "Archipelago" },
+      { url: "https://cards.scryfall.io/large/front/c/8/c84ea0fd-efc7-4614-9f8f-41a3c71fceaa.jpg?1696636503", name: "Blast from the Past (Doctors)" },
+      { url: "https://cards.scryfall.io/large/front/5/0/50f8e2b6-98c7-4f28-bb39-e1fbe841f1ee.jpg?1699044315", name: "Pew Pew" },
+      { url: "https://cards.scryfall.io/large/front/d/f/dfe36901-5841-4942-8b61-c273111f715e.jpg?1721428146", name: "Family Matters (Offspring)" },
+      { url: "https://cards.scryfall.io/large/front/4/2/42bbedc1-6b83-46b4-8b3b-a4e05ce77d87.jpg?1721428140", name: "Peace Offering (Group Hug)" },
+      { url: "https://cards.scryfall.io/large/front/1/2/1269ca79-907e-4932-9e77-a9a5d2929060.jpg?1721428131", name: "Squirreled Away" },
+      { url: "https://cards.scryfall.io/large/front/8/5/85c18d01-62cd-45c2-94b8-a63a4239311d.jpg?1675644660", name: "Dew It" },
+      { url: "https://cards.scryfall.io/large/front/c/4/c40b25d7-73c9-4f30-a707-5afb08185a8d.jpg?1698988755", name: "Discovering Your Defeat" },
+      { url: "https://cards.scryfall.io/large/front/1/2/12a3400d-7a8b-4bae-9a4f-c9a1bc741e68.jpg?1674066178", name: "Necron Dynasties" },
+      { url: "https://cards.scryfall.io/large/front/2/1/213e530e-33a9-4358-b43b-4a276a7e7190.jpg?1674140675", name: "Exit from Exile" },
+      { url: "https://cards.scryfall.io/large/front/a/b/ab866ec4-dcb4-47ef-8de1-a369986609c0.jpg?1738281205", name: "Corrupting Influence (Poison)" },
+      { url: "https://cards.scryfall.io/large/front/0/3/03a7e79f-625a-49ac-9cb1-e1fe5f51f5a0.jpg?1714110365", name: "Grand Larceny (Vol)" },
+      { url: "https://cards.scryfall.io/large/front/2/a/2a8a7696-b5d9-4378-9d5c-2c9007e4df63.jpg?1714110409", name: "Quick Draw (Spells)" },
+      { url: "https://cards.scryfall.io/large/front/8/b/8b796a56-1611-4835-ac5b-48b4e9263685.jpg?1691500693", name: "Enduring Enchantments (Enchantement 2)" },
+      { url: "https://cards.scryfall.io/large/front/9/2/92870fc6-a6bc-4198-bb31-397e07e0e835.jpg?1691500696", name: "Plainswalker Party" },
+      { url: "https://cards.scryfall.io/large/front/5/a/5acffa48-9e3f-4ba3-a55f-d459307f46df.jpg?1673304686", name: "Painbow (5 Colors)" },
+      { url: "https://cards.scryfall.io/large/front/9/f/9f5d253e-9eb2-423c-90ee-68f27ec6bf88.jpg?1691500699", name: "Sliver Swarm" },
+      { url: "https://cards.scryfall.io/large/front/a/4/a485c2c3-c90b-43b4-bb00-c1b811b4b392.jpg?1682207202", name: "Call for Backup" },
+      { url: "https://cards.scryfall.io/large/front/5/f/5fc707be-9286-4ba1-90f6-475265d19ed2.jpg?1682207238", name: "Cavalry Charge (Chevaliers)" },
+      { url: "https://cards.scryfall.io/large/front/a/e/ae9ccfec-05c6-469e-b1dd-dfbafa1e927f.jpg?1706448877", name: "Deep Clue Sea" },
+      { url: "https://cards.scryfall.io/large/front/6/9/690acbbf-5e92-4323-b939-31bdb07f9905.jpg?1706448873", name: "Revenant Recon (Surveil)" },
+      { url: "https://cards.scryfall.io/large/front/d/5/d53a775d-5898-41a8-b404-9b7d4721c6ba.jpg?1712356126", name: "Shitizz" },
+      { url: "https://cards.scryfall.io/large/front/6/9/69dad154-2616-4bd6-8448-0e0458ee136d.jpg?1562274121", name: "Merely a Setback" },
+      { url: "https://cards.scryfall.io/large/front/0/3/03fab911-7bd4-45fa-ba07-cd0e51b0cd95.jpg?1692933608", name: "Fae Dominion (Fairies)" },
+      { url: "https://cards.scryfall.io/large/front/5/4/547888c3-a9a6-4413-b29a-6bcd8a9279bf.jpg?1704848185", name: "Elven Empire (Elfs)" },
+      { url: "https://cards.scryfall.io/large/front/8/f/8fa46d54-563d-4b5c-9c69-5ab37dd529b3.jpg?1686963714", name: "Elven Council (Votes)" },
+      { url: "https://cards.scryfall.io/large/front/a/2/a209bda2-f0bf-4417-94f9-b73eff0b4217.jpg?1682207229", name: "Divine Convocation (Convoke)" },
+      { url: "https://cards.scryfall.io/large/front/1/8/18df72be-07d2-4412-b36d-a45119763db3.jpg?1714110413", name: "Desert Bloom" },
+      { url: "https://cards.scryfall.io/large/front/6/4/648c15d1-a2a2-4f59-9b0a-5448be3e990f.jpg?1706448869", name: "Deadly Disguise (Face Cachées 1)" },
+      { url: "https://cards.scryfall.io/large/front/9/f/9f55b648-b1ec-407a-a0c7-7647755793d1.jpg?1699972735", name: "Blood Rites (Vampires)" },
+      { url: "https://cards.scryfall.io/large/front/2/e/2ef59aa9-f5e1-413a-869b-d287db95efd0.jpg?1706448880", name: "Blame Game (Goad)" },
+      { url: "https://cards.scryfall.io/large/front/b/d/bdc2d492-9d1e-4543-8b9c-c66ee67992ce.jpg?1699972732", name: "Ahoy Mateys (Pirates)" },
+      { url: "https://cards.scryfall.io/large/front/c/0/c046dfb0-9ca3-4219-a6b0-d7503bc2fbd0.jpg?1562202020", name: "Unbearable (Ours)" },
+      { url: "https://cards.scryfall.io/large/front/c/b/cba71725-d6df-44d7-a93b-934573759711.jpg?1684340854", name: "Heaven's Fall (Anges 2)" },
+      { url: "https://cards.scryfall.io/large/front/d/0/d0a98f22-b1ea-4ccb-8782-bf488bcd069b.jpg?1693263840", name: "Giada Angels (Anges 1)" },
+      { url: "https://cards.scryfall.io/large/front/d/6/d607b003-6b48-429c-a7fd-45b8dd1bb4f9.jpg?1665822343", name: "Release the Kraken" },
+      { url: "https://cards.scryfall.io/large/front/5/5/55c02dc8-0743-400c-b334-ca029caf0463.jpg?1728436128", name: "Mind Flayarrrs (Horrors)" },
+      { url: "https://cards.scryfall.io/large/front/e/c/ec983aac-9eda-4086-ad7e-34da9b2987cc.jpg?1674140753", name: "The Shitshow" },
+      { url: "https://cards.scryfall.io/large/front/9/4/9476fe67-d2d3-4835-8ba6-2a17d18cc141.jpg?1723704351", name: "Sanctuary (Shrines)" },
+      { url: "https://cards.scryfall.io/large/front/7/3/73c18cb4-96b1-4af2-912e-974e22877ede.jpg?1673148799", name: "Potato Soup" },
+      { url: "https://cards.scryfall.io/large/front/1/c/1c8c41dd-8551-4ce8-a9be-9b9f65718852.jpg?1704848195", name: "Phantom Premonition (Spirits)" },
+      { url: "https://cards.scryfall.io/large/front/c/c/cce29404-abfd-4c2c-90e5-5e04c111aa2b.jpg?1721429477", name: "Everybody Gets a Card! (Group Hug)" },
+      { url: "https://cards.scryfall.io/large/front/b/5/b55e624b-6f6a-42ae-89aa-0cc62ee55a31.jpg?1674140684", name: "Draconic Dissent (Dragon Goad)" },
+      { url: "https://cards.scryfall.io/large/front/8/9/89943e56-0fb0-4de3-bb3a-94b1a016d7e3.jpg?1626118093", name: "Donald Trump (Walls 1)" },
+      { url: "https://cards.scryfall.io/large/front/4/c/4c687123-6c34-4aef-8350-70a72b5fb58f.jpg?1689997644", name: "Allahu Akbar" },
+      { url: "https://cards.scryfall.io/large/front/c/7/c7f2c2d5-e052-49e8-b5de-712858c2ea78.jpg?1752052932", name: "Scions & Spellcraft" },
+      { url: "https://cards.scryfall.io/large/front/2/c/2c3549f6-25df-4ea7-84ad-922ccd4af6b2.jpg?1745970956", name: "Abzan Armor (Walls 2)" },
+      { url: "https://cards.scryfall.io/large/front/2/5/2524645e-b066-4351-885b-10faa8d819d7.jpg?1699972737", name: "Veloci-ramp-tor (Dinos)" },
+      { url: "https://cards.scryfall.io/large/front/1/c/1c3f0ffe-cf51-4c30-8cd5-9e3c7e92c019.jpg?1673307936", name: "Slurp Slurp (Shitizz Jr.)" },
+      { url: "https://cards.scryfall.io/large/front/7/d/7d7a8a90-13c1-4b0c-ab2e-fc8d91ccefd9.jpg?1631050242", name: "Poke! You Dead (Poison)" },
+      { url: "https://cards.scryfall.io/large/front/8/1/813a39af-bafe-4a38-a270-39a0ce0f4aa5.jpg?1730489698", name: "Meow Meow!" },
+	    { url: "https://cards.scryfall.io/large/front/d/5/d55a4c02-1aa4-454c-9041-84937377a53b.jpg?1748705763", name: "Achromatic" },
+	    { url: "https://cards.scryfall.io/large/front/5/9/59fc74c0-9a97-44d5-a62e-a2b68880cfac.jpg?1748707861", name: "Endure. Survive. Live." },
+	    { url: "https://cards.scryfall.io/large/front/3/b/3b3e889a-5865-4464-9923-bffa25c50cd2.jpg?1674137513", name: "Jelly-FISH!" },
+	    { url: "https://cards.scryfall.io/large/front/b/8/b8b70585-e0ea-4cb4-9360-a8ab47626696.jpg?1743206346", name: "Pulverize the Archive" },
+      { url: "https://cards.scryfall.io/large/front/4/d/4dc2d415-fdf7-4f2d-95d0-a793ffc26491.jpg?1726596878", name: "Caw Caw!" },
+    ];
+
+    /* Utility: Fisher–Yates shuffle */
+    function shuffle(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    /* ===========================
+       DOM refs
+       =========================== */
+    const setupScreen = document.getElementById("setup");
+    const gameScreen = document.getElementById("game");
+    const boardEl = document.getElementById("board");
+    const scoreEl = document.getElementById("score");
+    const turnEl = document.getElementById("turnIndicator");
+    const controlsEl = document.getElementById("controls");
+    const rightBtn = document.getElementById("rightBtn");
+    const wrongBtn = document.getElementById("wrongBtn");
+    const remainingListEl = document.getElementById("remainingList");
+
+    let players, currentIdx, scores, remaining;
+    let activeTile = null;
+    let remainingNames = [];
+
+    document.getElementById("startBtn").addEventListener("click", () => {
+      const p1 = document.getElementById("p1Name").value.trim() || "Player 1";
+      const p2 = document.getElementById("p2Name").value.trim() || "Player 2";
+      players = [
+        { name: p1, color: "p1" },
+        { name: p2, color: "p2" },
+      ];
+      currentIdx = Math.random() < 0.5 ? 0 : 1; // random start
+      scores = [0, 0];
+      remaining = TILE_IMAGES.length;
+      buildBoard();
+      updateUI();
+      setupScreen.classList.add("hidden");
+      gameScreen.classList.remove("hidden");
+    });
+
+    function buildBoard() {
+      boardEl.innerHTML = "";
+      const tilesData = shuffle([...TILE_IMAGES]);
+
+      remainingNames = tilesData.map((d) => d.name).sort();
+      renderRemaining();
+
+      tilesData.forEach((data, idx) => {
+        const tile = document.createElement("div");
+        tile.className = "tile";
+        tile.dataset.idx = idx;
+        tile.dataset.name = data.name;
+        tile.dataset.url = data.url;
+        tile.addEventListener("click", () => handleTileClick(tile));
+        boardEl.appendChild(tile);
+      });
+    }
+
+    function renderRemaining() {
+      // update title with counter
+      document.getElementById("remainingTitle").textContent =
+      `Decks Left (${remainingNames.length})`;
+
+      // update list
+      remainingListEl.innerHTML = "";
+      remainingNames.forEach((n) => {
+      const li = document.createElement("li");
+      li.textContent = n;
+      remainingListEl.appendChild(li);
+      });
+    }
+
+    function handleTileClick(tile) {
+      if (tile.classList.contains("revealed") || activeTile) return; // ignore
+      revealTile(tile);
+      activeTile = tile;
+      document.getElementById("currentDeck").textContent = tile.dataset.name;
+      controlsEl.classList.remove("hidden");
+    }
+
+    function revealTile(tile) {
+      tile.classList.add("revealed");
+      const img = new Image();
+      img.src = tile.dataset.url;
+      img.alt = tile.dataset.name;
+      tile.appendChild(img);
+      tile.title = tile.dataset.name;
+    }
+
+    rightBtn.addEventListener("click", () => finalizeGuess(true));
+    wrongBtn.addEventListener("click", () => finalizeGuess(false));
+
+    function finalizeGuess(correct) {
+      if (!activeTile) return;
+      const playerColorClass = players[currentIdx].color;
+      if (correct) {
+        scores[currentIdx]++;
+        activeTile.classList.add(playerColorClass);
+      }
+
+      // remove from remaining list (correct or not)
+      const name = activeTile.dataset.name;
+      const idx = remainingNames.indexOf(name);
+      if (idx > -1) {
+        remainingNames.splice(idx, 1);
+        renderRemaining();
+      }
+
+      remaining--;
+      activeTile = null;
+      controlsEl.classList.add("hidden");
+      document.getElementById("currentDeck").textContent = "";
+
+      if (remaining === 0) {
+        endGame();
+      } else {
+        currentIdx = 1 - currentIdx; // switch player
+        updateUI();
+      }
+    }
+
+    function updateUI() {
+      scoreEl.textContent = `${players[0].name}: ${scores[0]} vs ${players[1].name}: ${scores[1]}`;
+      turnEl.textContent = `Turn: ${players[currentIdx].name}`;
+    }
+
+    function endGame() {
+      const [s1, s2] = scores;
+      const winnerText =
+        s1 === s2 ? "It's a draw!" : `${s1 > s2 ? players[0].name : players[1].name} wins!`;
+      turnEl.textContent = winnerText;
+      controlsEl.classList.add("hidden");
+      boardEl.querySelectorAll(".tile").forEach((t) => t.removeEventListener("click", handleTileClick));
+    }
+  </script>
+</body>
+</html>
