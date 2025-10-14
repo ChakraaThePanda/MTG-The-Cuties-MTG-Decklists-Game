@@ -129,6 +129,8 @@
     /* ============================
        CONTROLS
        ============================ */
+    #revealAllBtn { padding: 0.5rem 1rem; font-size: 0.95rem; cursor: pointer; }
+    #revealAllBtn:hover { filter: brightness(0.95); }
     #controls button {
       padding: 0.5rem 1rem;
       margin: 0 0.25rem;
@@ -185,6 +187,7 @@
       <aside id="remaining">
         <h2 id="remainingTitle">Decks Left</h2>
         <ul id="remainingList"></ul>
+		<button id="revealAllBtn" style="width:100%; margin: 8px 0;">Reveal All Cards</button>
       </aside>
     </div>
   </section>
@@ -292,6 +295,34 @@
     const rightBtn = document.getElementById("rightBtn");
     const wrongBtn = document.getElementById("wrongBtn");
     const remainingListEl = document.getElementById("remainingList");
+
+    const revealAllBtn = document.getElementById("revealAllBtn");
+    if (revealAllBtn) {
+      revealAllBtn.addEventListener("click", () => {
+        const ok = confirm("Reveal ALL cards now? This will end the game immediately.");
+        if (!ok) return;
+        revealAll();
+      });
+    }
+
+    function revealAll() {
+      // Flip every tile face-up
+      boardEl.querySelectorAll(".tile").forEach((tile) => {
+        if (!tile.classList.contains("revealed")) {
+          revealTile(tile);
+        }
+      });
+
+      // Clear remaining list and wrap things up
+      remainingNames = [];
+      renderRemaining();
+      remaining = 0;
+      activeTile = null;
+      controlsEl.classList.add("hidden");
+      document.getElementById("currentDeck").textContent = "";
+      endGame();
+    }
+
 
     let players, currentIdx, scores, remaining;
     let activeTile = null;
