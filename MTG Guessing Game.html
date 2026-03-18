@@ -770,6 +770,18 @@
     function handleTileClick(tile) {
       if (tile.classList.contains("revealed") || activeTile) return;
       revealTile(tile);
+
+      // If this is the last card, reveal it without a guess and end the game
+      if (remaining === 1) {
+        const name = tile.dataset.name;
+        const idx = remainingNames.indexOf(name);
+        if (idx > -1) { remainingNames.splice(idx, 1); renderRemaining(); }
+        remaining--;
+        controlsEl.classList.add("hidden");
+        endGame();
+        return;
+      }
+
       activeTile = tile;
       document.getElementById("currentDeck").textContent = tile.dataset.name;
       controlsEl.classList.remove("hidden");
